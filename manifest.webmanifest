@@ -1,0 +1,9 @@
+{
+  "name": "Wada Sanzo — Classic",
+  "short_name": "Wada Sanzo",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f0e9",
+  "theme_color": "#171614",
+  "lang": "ru"
+}

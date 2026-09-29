@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171614">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Wada Sanzo">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Wada Sanzo — Classic</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f0e9;color:#171614;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif}
+header{position:sticky;top:0;z-index:10;padding:18px 16px 14px;background:rgba(243,240,233,.96);backdrop-filter:blur(20px);border-bottom:1px solid #ddd7cc}
+h1{margin:0;font-size:27px;letter-spacing:-.6px}.sub{margin-top:3px;color:#746e64;font-size:13px}
+.search{width:100%;margin-top:14px;padding:14px 15px;border:1px solid #d1cabf;border-radius:15px;background:#fff;font-size:17px;outline:none}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:#746e64;font-size:13px}
+main{max-width:1000px;margin:auto;padding:14px}.section{font-size:13px;font-weight:700;letter-spacing:.08em;color:#746e64;margin:10px 2px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.card{background:#fff;border:1px solid #e1dcd3;border-radius:18px;padding:12px;position:relative;overflow:hidden}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.num{font-size:13px;color:#746e64;font-weight:700}
+.star{border:0;background:transparent;font-size:38px;line-height:38px;width:48px;height:48px;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.swatches{display:flex;width:100%;height:92px;border-radius:13px;overflow:hidden;background:#eee}
+.swatch{flex:1;min-width:0}.empty{height:92px;border-radius:13px;background:#ddd;display:flex;align-items:center;justify-content:center;color:#777;font-size:12px}
+.open{display:block;margin-top:10px;text-align:center;text-decoration:none;color:#fff;background:#171614;border-radius:11px;padding:9px;font-size:13px;font-weight:600}
+.note{font-size:12px;color:#746e64;line-height:1.45;margin:0 2px 14px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header>
+<h1>Wada Sanzo</h1>
+<div class="sub">Классическая коллекция · проверенные цветовые данные</div>
+<input id="search" class="search" inputmode="numeric" type="search" placeholder="Поиск по номеру, например 224">
+<div class="toolbar"><span id="count">Загрузка…</span><span>★ — избранное</span></div>
+</header>
+<main>
+<p class="note">Цвета взяты из открытого набора данных dictionary-of-colour-combinations, содержащего 348 комбинаций и HEX/RGB/LAB значения. Избранное хранится на этом iPhone.</p>
+<div id="favSection" class="section" style="display:none">ИЗБРАННОЕ</div>
+<div id="favGrid" class="grid"></div>
+<div class="section">ВСЕ СОЧЕТАНИЯ</div>
+<div id="grid" class="grid"></div>
+</main>
+<script>
+const DATA_URL='https://raw.githubusercontent.com/mattdesl/dictionary-of-colour-combinations/master/colors.json';
+let palettes=[], favorites=JSON.parse(localStorage.getItem('wadaFavorites')||'[]');
+const $=id=>document.getElementById(id);
+
+function saveFav(){localStorage.setItem('wadaFavorites',JSON.stringify(favorites))}
+function toggleFav(id){
+ id=Number(id);
+ if(favorites.includes(id)) favorites=favorites.filter(x=>x!==id);
+ else favorites=[id,...favorites];
+ saveFav(); render();
+}
+function paletteMap(colors){
+ const m={};
+ colors.forEach(c=>(c.combinations||[]).forEach(id=>{(m[id]??=[]).push(c.hex)}));
+ return m;
+}
+function card(p, fav=false){
+ const colors=p.colors||[];
+ const sw=colors.length?`<div class="swatches">${colors.map(c=>`<div class="swatch" style="background:${c}"></div>`).join('')}</div>`:`<div class="empty">Цвета не загружены</div>`;
+ return `<article class="card"><div class="top"><div class="num">№ ${p.id}</div><button class="star" aria-label="Избранное" onclick="toggleFav(${p.id})">${fav?'★':'☆'}</button></div>${sw}<a class="open" href="https://www.wada-sanzo-colors.com/combination/classic/${p.id}" target="_blank" rel="noopener">Открыть</a></article>`;
+}
+function render(){
+ const q=$('search').value.trim().replace(/^#/,'');
+ const filtered=q?palettes.filter(p=>String(p.id).includes(q)):palettes;
+ const favSet=new Set(favorites);
+ const favs=favorites.map(id=>palettes.find(p=>p.id===id)).filter(Boolean).filter(p=>!q||String(p.id).includes(q));
+ $('favSection').style.display=favs.length?'block':'none';
+ $('favGrid').innerHTML=favs.map(p=>card(p,true)).join('');
+ $('grid').innerHTML=filtered.filter(p=>!favSet.has(p.id)).map(p=>card(p,false)).join('');
+ $('count').textContent=`Найдено: ${filtered.length}`;
+}
+async function load(){
+ try{
+  const r=await fetch(DATA_URL,{mode:'cors'}); const colors=await r.json();
+  const map=paletteMap(colors);
+  const ids=[...new Set(colors.flatMap(c=>c.combinations||[]))].sort((a,b)=>a-b);
+  palettes=ids.map(id=>({id,colors:map[id]||[]}));
+  render();
+ }catch(e){
+  $('count').textContent='Не удалось загрузить цвета';
+  $('grid').innerHTML='<div class="note">Для цветных превью нужен интернет. Откройте приложение при подключении к сети.</div>';
+ }
+}
+load();
+</script>
+</body></html>
